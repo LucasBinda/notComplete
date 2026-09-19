@@ -1,0 +1,41 @@
+# Dependencies
+node_modules/
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.Python
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+
+# Logs & OS
+*.log
+.DS_Store
+Thumbs.db
+
+# Entregas locais (PDF com nomes completos — não versionar)
+entregas/
+
+# Build / IDE
+dist/
+build/
+.next/
+out/
+.coverage
+htmlcov/
+.pytest_cache/
+.mypy_cache/
+.idea/
+.vscode/
+*.swp
+
+# Java leftovers (template original)
+*.class
+*.jar
+*.war
+*.ear
+hs_err_pid*
+replay_pid*
