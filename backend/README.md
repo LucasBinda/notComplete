@@ -1,12 +1,17 @@
 # Backend — WatchMatch
 
-API do projeto (Node.js ou Python — a definir na implementação).
+Backend em **microsserviços**, orquestrados com Docker Compose. Arquitetura completa em [docs/ARQUITETURA.md](../docs/ARQUITETURA.md).
 
-## Escopo previsto
+## Serviços
 
-- Endpoint de busca/recomendação (filtros + texto livre)
-- Integração com **Groq** (interpretação de intenção → critérios estruturados)
-- Integração com **TMDB** e API de disponibilidade (“onde assistir”)
-- Base para testes automatizados e harness de eval do componente de IA
+| Serviço | Responsabilidade |
+| ------- | ---------------- |
+| `gateway/` | Porta única do frontend (Nginx): roteamento, CORS, rate limit |
+| `recommendation-service/` | Orquestra o fluxo de recomendação |
+| `llm-service/` | Integração com o **Groq** (intenção → critérios; rerank + justificativas) |
+| `catalog-service/` | Integração com o **TMDB** (catálogo e "onde assistir") |
+| `feedback-service/` | Feedback do usuário e métricas (C3) |
+
+Linguagem padrão: **Java 21 + Spring Boot 3**. Outras linguagens são permitidas desde que o serviço cumpra seu contrato em `contracts/` e as convenções da seção 3 da arquitetura.
 
 Implementação a partir do ciclo C1→C2.

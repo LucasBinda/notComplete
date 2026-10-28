@@ -1,0 +1,168 @@
+openapi: 3.0.3
+info:
+  title: WatchMatch — componentes comuns
+  version: 0.1.0
+  description: |
+    Esquemas e parâmetros compartilhados por todos os contratos.
+    Referenciados via `$ref: './common.yaml#/components/...'`.
+paths: {}
+components:
+  parameters:
+    RequestId:
+      name: X-Request-Id
+      in: header
+      required: false
+      description: Id de rastreamento gerado pelo gateway; todo serviço deve repassá-lo nas chamadas que fizer.
+      schema:
+        type: string
+        maxLength: 128
+
+  responses:
+    BadRequest:
+      description: Requisição inválida
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    NotFound:
+      description: Recurso não encontrado
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    UpstreamError:
+      description: Falha em uma dependência externa (TMDB, Groq ou outro serviço)
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+
+  schemas:
+    Problem:
+      type: object
+      description: Formato padrão de erro (RFC 9457 / application/problem+json).
+      required: [status, title]
+      properties:
+        status:
+          type: integer
+          example: 400
+        title:
+          type: string
+          example: Requisição inválida
+        detail:
+          type: string
+          example: "O campo 'providers' deve ter ao menos 1 item."
+        requestId:
+          type: string
+
+    Health:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [ok]
+
+    MediaType:
+      type: string
+      enum: [movie, tv]
+      description: "movie = filme, tv = série"
+
+    Certification:
+      type: string
+      enum: ['L', '10', '12', '14', '16', '18']
+      description: Classificação indicativa brasileira.
+
+    Genre:
+      type: object
+      required: [id, name]
+      properties:
+        id:
+          type: integer
+          description: Id do gênero no TMDB
+          example: 35
+        name:
+          type: string
+          example: Comédia
+
+    Provider:
+      type: object
+      required: [id, name]
+      properties:
+        id:
+          type: integer
+          description: Id da plataforma no TMDB (ex. Netflix = 8, Amazon Prime Video = 119)
+          example: 8
+        name:
+          type: string
+          example: Netflix
+        logoUrl:
+          type: string
+          format: uri
+          nullable: true
+
+    WatchProvider:
+      description: Plataforma onde um título específico está disponível no Brasil.
+      allOf:
+        - $ref: '#/components/schemas/Provider'
+        - type: object
+          required: [offer, watchUrl]
+          properties:
+            offer:
+              type: string
+              enum: [flatrate, free, ads, rent, buy]
+              description: "flatrate = incluído na assinatura; rent = aluguel; buy = compra"
+            watchUrl:
+              type: string
+              format: uri
+              description: |
+                Link para o botão "Abrir na plataforma". O catalog-service monta a URL de
+                busca da própria plataforma com o nome do título (ex.
+                https://www.netflix.com/search?q=Interestelar). Para plataformas sem
+                modelo de busca conhecido, usa a página "onde assistir" do TMDB.
+
+    Criteria:
+      type: object
+      description: |
+        Critérios estruturados de busca. Todos os campos são opcionais;
+        ausência significa "sem restrição".
+      properties:
+        mediaType:
+          $ref: '#/components/schemas/MediaType'
+        genres:
+          type: array
+          description: Ids de gênero que o título deve ter (qualquer um deles)
+          items:
+            type: integer
+        excludeGenres:
+          type: array
+          description: Ids de gênero proibidos
+          items:
+            type: integer
+        runtimeMin:
+          type: integer
+          minimum: 0
+          description: Duração mínima em minutos (por episódio, no caso de séries)
+        runtimeMax:
+          type: integer
+          minimum: 1
+          description: Duração máxima em minutos (por episódio, no caso de séries)
+        yearFrom:
+          type: integer
+          minimum: 1900
+        yearTo:
+          type: integer
+          minimum: 1900
+        originalLanguage:
+          type: string
+          description: Código ISO 639-1 do idioma original
+          example: ko
+        certificationMax:
+          $ref: '#/components/schemas/Certification'
+        keywords:
+          type: array
+          description: Palavras-chave temáticas em inglês (ex. "heist", "time travel"); o catalog-service as converte em ids do TMDB
+          items:
+            type: string
+            maxLength: 50
+          maxItems: 5

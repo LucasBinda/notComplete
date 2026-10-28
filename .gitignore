@@ -20,6 +20,7 @@ Thumbs.db
 entregas/
 
 # Build / IDE
+target/
 dist/
 build/
 .next/
@@ -39,3 +40,6 @@ htmlcov/
 *.ear
 hs_err_pid*
 replay_pid*
+
+# Lixeira local (não versionar)
+trash/

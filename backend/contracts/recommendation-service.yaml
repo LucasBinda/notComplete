@@ -1,0 +1,191 @@
+openapi: 3.0.3
+info:
+  title: WatchMatch — recommendation-service
+  version: 0.1.0
+  description: |
+    Orquestrador do fluxo de recomendação. Exposto ao frontend pelo gateway
+    como `POST /api/recommend`.
+
+    Fluxo: sanitiza o texto → llm-service `/intent` → mescla com os filtros
+    explícitos (os filtros da UI sempre vencem) → catalog-service `/discover`
+    (e `/search` + `/similar` se houver título de referência) → llm-service
+    `/rerank` → grounding (descarta ids fora dos candidatos) → catalog-service
+    `/titles/lookup` para enriquecer os itens finais.
+
+    Degradação: se o llm-service falhar ou estiver com o circuito aberto,
+    responde com os candidatos do catálogo sem justificativas e `degraded: true`.
+servers:
+  - url: http://recommendation-service:8080
+    description: Rede interna do Docker Compose
+paths:
+  /health:
+    get:
+      summary: Verificação de saúde
+      operationId: health
+      responses:
+        '200':
+          description: Serviço no ar
+          content:
+            application/json:
+              schema:
+                $ref: './common.yaml#/components/schemas/Health'
+
+  /recommend:
+    post:
+      summary: Gera recomendações a partir de texto livre e/ou filtros
+      operationId: recommend
+      parameters:
+        - $ref: './common.yaml#/components/parameters/RequestId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecommendRequest'
+            example:
+              query: quero uma comédia leve pra ver com minha namorada, nada de terror
+              filters:
+                runtimeMax: 120
+              providers: [8, 119]
+      responses:
+        '200':
+          description: Recomendações (lista pode vir vazia, com aviso em `notices`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecommendResponse'
+        '400':
+          $ref: './common.yaml#/components/responses/BadRequest'
+        '502':
+          description: catalog-service indisponível (sem catálogo não há recomendação possível)
+          content:
+            application/problem+json:
+              schema:
+                $ref: './common.yaml#/components/schemas/Problem'
+
+components:
+  schemas:
+    RecommendRequest:
+      type: object
+      description: É obrigatório enviar `query` ou ao menos um filtro.
+      required: [providers]
+      properties:
+        query:
+          type: string
+          maxLength: 500
+          description: Pedido em linguagem natural (opcional)
+        filters:
+          $ref: './common.yaml#/components/schemas/Criteria'
+        providers:
+          type: array
+          description: Plataformas que o usuário assina
+          minItems: 1
+          items:
+            type: integer
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 20
+          default: 8
+
+    RecommendResponse:
+      type: object
+      required: [criteria, items, degraded, notices]
+      properties:
+        requestId:
+          type: string
+        criteria:
+          $ref: '#/components/schemas/AppliedCriteria'
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Recommendation'
+        degraded:
+          type: boolean
+          description: true quando a IA não pôde ser usada e o resultado veio só do catálogo
+        notices:
+          type: array
+          description: Avisos para exibir ao usuário (ex. "Não entendi o pedido; mostrando populares")
+          items:
+            type: string
+
+    AppliedCriteria:
+      description: Critérios efetivamente usados na busca (após mesclar IA + filtros), exibidos como chips editáveis.
+      allOf:
+        - $ref: './common.yaml#/components/schemas/Criteria'
+        - type: object
+          required: [providers]
+          properties:
+            providers:
+              type: array
+              items:
+                type: integer
+            referenceTitle:
+              type: string
+              nullable: true
+            summary:
+              type: string
+              nullable: true
+              description: Resumo da interpretação ("Comédia romântica leve, até 2h, sem terror")
+            sources:
+              type: object
+              description: De onde veio cada critério (para a UI diferenciar "você pediu" de "a IA entendeu")
+              additionalProperties:
+                type: string
+                enum: [filter, ai]
+              example:
+                runtimeMax: filter
+                genres: ai
+                excludeGenres: ai
+
+    Recommendation:
+      type: object
+      required: [id, mediaType, title, watch]
+      properties:
+        id:
+          type: integer
+        mediaType:
+          $ref: './common.yaml#/components/schemas/MediaType'
+        title:
+          type: string
+        originalTitle:
+          type: string
+        year:
+          type: integer
+          nullable: true
+        overview:
+          type: string
+        posterUrl:
+          type: string
+          format: uri
+          nullable: true
+        genres:
+          type: array
+          items:
+            $ref: './common.yaml#/components/schemas/Genre'
+        voteAverage:
+          type: number
+        runtime:
+          type: integer
+          nullable: true
+        certification:
+          description: Classificação indicativa (ausente quando desconhecida)
+          allOf:
+            - $ref: './common.yaml#/components/schemas/Certification'
+        watch:
+          type: object
+          required: [providers]
+          description: Onde assistir no Brasil, filtrado pelas plataformas do usuário. Fonte — JustWatch (via TMDB).
+          properties:
+            link:
+              type: string
+              format: uri
+              nullable: true
+            providers:
+              type: array
+              items:
+                $ref: './common.yaml#/components/schemas/WatchProvider'
+        reason:
+          type: string
+          nullable: true
+          description: Justificativa da IA; null quando `degraded` é true

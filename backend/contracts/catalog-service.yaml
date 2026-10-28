@@ -1,0 +1,376 @@
+openapi: 3.0.3
+info:
+  title: WatchMatch — catalog-service
+  version: 0.1.0
+  description: |
+    Fonte única de dados de catálogo. Encapsula o TMDB (metadados) e os dados de
+    "onde assistir" que o TMDB fornece em parceria com a JustWatch.
+
+    - Região fixa: **BR**. Idioma das respostas: **pt-BR**.
+    - Só retorna títulos reais do TMDB — nunca inventa itens.
+    - URLs de imagem já vêm completas (`https://image.tmdb.org/t/p/...`).
+    - Atribuição obrigatória na UI: TMDB (logo + aviso) e JustWatch (dados de "onde assistir").
+servers:
+  - url: http://catalog-service:8080
+    description: Rede interna do Docker Compose
+paths:
+  /health:
+    get:
+      summary: Verificação de saúde
+      operationId: health
+      responses:
+        '200':
+          description: Serviço no ar
+          content:
+            application/json:
+              schema:
+                $ref: './common.yaml#/components/schemas/Health'
+
+  /meta:
+    get:
+      summary: Gêneros e plataformas disponíveis no Brasil
+      description: |
+        Usado pelo frontend para montar os filtros e pelo recommendation-service
+        para informar ao llm-service quais gêneros/plataformas existem.
+        Resposta cacheada (muda raramente).
+      operationId: getMeta
+      parameters:
+        - $ref: './common.yaml#/components/parameters/RequestId'
+      responses:
+        '200':
+          description: Metadados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Meta'
+        '502':
+          $ref: './common.yaml#/components/responses/UpstreamError'
+
+  /discover:
+    post:
+      summary: Busca títulos reais que atendem aos critérios
+      description: |
+        Traduz os critérios para `GET /discover/movie` ou `/discover/tv` do TMDB com
+        `watch_region=BR`, `with_watch_providers` (OR entre as plataformas) e
+        `with_watch_monetization_types=flatrate|free|ads` (ou seja, incluído na assinatura).
+        Sem `mediaType`, busca filmes e séries e intercala os resultados.
+      operationId: discover
+      parameters:
+        - $ref: './common.yaml#/components/parameters/RequestId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DiscoverRequest'
+      responses:
+        '200':
+          description: Candidatos encontrados (pode ser lista vazia)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TitleList'
+        '400':
+          $ref: './common.yaml#/components/responses/BadRequest'
+        '502':
+          $ref: './common.yaml#/components/responses/UpstreamError'
+
+  /search:
+    get:
+      summary: Busca títulos pelo nome
+      description: Usado para resolver referências como "parecido com Interestelar".
+      operationId: searchTitles
+      parameters:
+        - $ref: './common.yaml#/components/parameters/RequestId'
+        - name: query
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 100
+        - name: mediaType
+          in: query
+          required: false
+          schema:
+            $ref: './common.yaml#/components/schemas/MediaType'
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 20
+            default: 5
+      responses:
+        '200':
+          description: Títulos encontrados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TitleList'
+        '400':
+          $ref: './common.yaml#/components/responses/BadRequest'
+        '502':
+          $ref: './common.yaml#/components/responses/UpstreamError'
+
+  /titles/{mediaType}/{id}:
+    get:
+      summary: Detalhes completos de um título
+      operationId: getTitle
+      parameters:
+        - $ref: './common.yaml#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/MediaTypePath'
+        - $ref: '#/components/parameters/TitleIdPath'
+      responses:
+        '200':
+          description: Título
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TitleDetail'
+        '404':
+          $ref: './common.yaml#/components/responses/NotFound'
+        '502':
+          $ref: './common.yaml#/components/responses/UpstreamError'
+
+  /titles/{mediaType}/{id}/similar:
+    get:
+      summary: Títulos parecidos disponíveis nas plataformas informadas
+      description: Baseado em `/recommendations` do TMDB, filtrado por disponibilidade no BR.
+      operationId: getSimilar
+      parameters:
+        - $ref: './common.yaml#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/MediaTypePath'
+        - $ref: '#/components/parameters/TitleIdPath'
+        - name: providers
+          in: query
+          required: false
+          description: Ids de plataforma separados por vírgula; se ausente, não filtra por plataforma
+          schema:
+            type: string
+            pattern: '^\d+(,\d+)*$'
+            example: '8,119'
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 40
+            default: 20
+      responses:
+        '200':
+          description: Títulos parecidos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TitleList'
+        '404':
+          $ref: './common.yaml#/components/responses/NotFound'
+        '502':
+          $ref: './common.yaml#/components/responses/UpstreamError'
+
+  /titles/lookup:
+    post:
+      summary: Detalhes de vários títulos de uma vez
+      description: |
+        Usado pelo recommendation-service para enriquecer os títulos finais
+        (duração, classificação, onde assistir) em uma única chamada.
+        Ids inexistentes são omitidos da resposta.
+      operationId: lookupTitles
+      parameters:
+        - $ref: './common.yaml#/components/parameters/RequestId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [titles]
+              properties:
+                titles:
+                  type: array
+                  minItems: 1
+                  maxItems: 20
+                  items:
+                    $ref: '#/components/schemas/TitleRef'
+      responses:
+        '200':
+          description: Títulos encontrados, na mesma ordem do pedido
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TitleDetail'
+        '400':
+          $ref: './common.yaml#/components/responses/BadRequest'
+        '502':
+          $ref: './common.yaml#/components/responses/UpstreamError'
+
+components:
+  parameters:
+    MediaTypePath:
+      name: mediaType
+      in: path
+      required: true
+      schema:
+        $ref: './common.yaml#/components/schemas/MediaType'
+    TitleIdPath:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+
+  schemas:
+    Meta:
+      type: object
+      required: [genres, providers]
+      properties:
+        genres:
+          type: object
+          required: [movie, tv]
+          properties:
+            movie:
+              type: array
+              items:
+                $ref: './common.yaml#/components/schemas/Genre'
+            tv:
+              type: array
+              items:
+                $ref: './common.yaml#/components/schemas/Genre'
+        providers:
+          type: array
+          description: Plataformas de streaming com catálogo no Brasil, ordenadas por relevância
+          items:
+            $ref: './common.yaml#/components/schemas/Provider'
+
+    DiscoverRequest:
+      allOf:
+        - $ref: './common.yaml#/components/schemas/Criteria'
+        - type: object
+          required: [providers]
+          properties:
+            providers:
+              type: array
+              description: Ids das plataformas do usuário (o título precisa estar em ao menos uma)
+              minItems: 1
+              items:
+                type: integer
+            limit:
+              type: integer
+              minimum: 1
+              maximum: 60
+              default: 40
+            sortBy:
+              type: string
+              enum: [popularity, rating, recent]
+              default: popularity
+
+    TitleRef:
+      type: object
+      required: [mediaType, id]
+      properties:
+        mediaType:
+          $ref: './common.yaml#/components/schemas/MediaType'
+        id:
+          type: integer
+          minimum: 1
+
+    TitleSummary:
+      type: object
+      description: Resumo de um título, como retornado por buscas (sem duração nem plataformas).
+      required: [id, mediaType, title]
+      properties:
+        id:
+          type: integer
+          example: 157336
+        mediaType:
+          $ref: './common.yaml#/components/schemas/MediaType'
+        title:
+          type: string
+          example: Interestelar
+        originalTitle:
+          type: string
+          example: Interstellar
+        year:
+          type: integer
+          nullable: true
+          example: 2014
+        overview:
+          type: string
+          description: Sinopse em pt-BR (pode vir vazia se o TMDB não tiver tradução)
+        posterUrl:
+          type: string
+          format: uri
+          nullable: true
+        genres:
+          type: array
+          items:
+            $ref: './common.yaml#/components/schemas/Genre'
+        voteAverage:
+          type: number
+          minimum: 0
+          maximum: 10
+        originalLanguage:
+          type: string
+
+    TitleList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/TitleSummary'
+
+    TitleDetail:
+      allOf:
+        - $ref: '#/components/schemas/TitleSummary'
+        - type: object
+          properties:
+            runtime:
+              type: integer
+              nullable: true
+              description: Minutos (filme) ou duração média do episódio (série)
+            seasons:
+              type: integer
+              nullable: true
+              description: Número de temporadas (só séries)
+            certification:
+              description: Classificação indicativa (ausente quando desconhecida)
+              allOf:
+                - $ref: './common.yaml#/components/schemas/Certification'
+            backdropUrl:
+              type: string
+              format: uri
+              nullable: true
+            cast:
+              type: array
+              maxItems: 10
+              items:
+                type: string
+            watch:
+              $ref: '#/components/schemas/WatchInfo'
+
+    WatchInfo:
+      type: object
+      description: Onde assistir no Brasil. Fonte dos dados — JustWatch (via TMDB).
+      required: [providers]
+      properties:
+        link:
+          type: string
+          format: uri
+          nullable: true
+          description: Página "onde assistir" do TMDB para o título (não é deep link da plataforma)
+        providers:
+          type: array
+          items:
+            $ref: './common.yaml#/components/schemas/WatchProvider'

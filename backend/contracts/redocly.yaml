@@ -1,0 +1,18 @@
+extends:
+  - recommended
+rules:
+  security-defined: off        # serviços internos; proteção fica no gateway
+  info-license: off
+  operation-4xx-response: off  # /health e /meta não têm erro de cliente
+apis:
+  common:
+    root: common.yaml
+    rules:
+      no-empty-servers: off      # só guarda componentes compartilhados
+      no-unused-components: off
+  catalog-service:
+    root: catalog-service.yaml
+  llm-service:
+    root: llm-service.yaml
+  recommendation-service:
+    root: recommendation-service.yaml

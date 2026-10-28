@@ -16,6 +16,7 @@ Relatório com escopo, justificativa, metodologia, plano de trabalho e comunidad
 - **[docs/RELATORIO_C1.md](docs/RELATORIO_C1.md)** — relatório completo da Entrega 1
 - [docs/PLANO_TRABALHO.md](docs/PLANO_TRABALHO.md) — cronograma C1→C3
 - [docs/IA_RESPONSAVEL.md](docs/IA_RESPONSAVEL.md) — privacidade, segurança e governança (inicial)
+- [docs/ARQUITETURA.md](docs/ARQUITETURA.md) — stack, arquitetura, estrutura de pastas, telas e plano do C2
 
 ## Ideia em uma frase
 
