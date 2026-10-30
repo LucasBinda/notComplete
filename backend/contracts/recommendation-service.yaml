@@ -86,14 +86,27 @@ components:
           type: integer
           minimum: 1
           maximum: 20
-          default: 8
+          default: 10
+          description: Tamanho da página
+        page:
+          type: integer
+          minimum: 1
+          maximum: 10
+          default: 1
+          description: Página de resultados ("Carregar mais" pede a próxima com o mesmo pedido)
 
     RecommendResponse:
       type: object
-      required: [criteria, items, degraded, notices]
+      required: [criteria, items, page, hasMore, degraded, notices]
       properties:
         requestId:
           type: string
+        page:
+          type: integer
+          minimum: 1
+        hasMore:
+          type: boolean
+          description: true quando existe uma próxima página
         criteria:
           $ref: '#/components/schemas/AppliedCriteria'
         items:

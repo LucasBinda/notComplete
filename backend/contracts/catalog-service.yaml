@@ -269,6 +269,12 @@ components:
               minimum: 1
               maximum: 60
               default: 40
+            page:
+              type: integer
+              minimum: 1
+              maximum: 500
+              default: 1
+              description: Página do TMDB (cada página do TMDB tem até 20 títulos)
             sortBy:
               type: string
               enum: [popularity, rating, recent]
@@ -330,6 +336,9 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/TitleSummary'
+        hasMore:
+          type: boolean
+          description: Em /discover, true quando o TMDB tem mais páginas
 
     TitleDetail:
       allOf:

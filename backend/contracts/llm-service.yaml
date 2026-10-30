@@ -193,7 +193,7 @@ components:
           type: integer
           minimum: 1
           maximum: 20
-          default: 8
+          default: 10
 
     Candidate:
       type: object
