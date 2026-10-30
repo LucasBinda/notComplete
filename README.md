@@ -22,6 +22,14 @@ Relatório com escopo, justificativa, metodologia, plano de trabalho e comunidad
 
 Você descreve o que quer assistir (ou usa filtros); a IA interpreta e recomenda títulos **ancorados em catálogo público**, indicando **onde assistir** — sem depender dos filtros limitados de cada streaming.
 
+## Como funciona
+
+1. **Você descreve.** Escreva do seu jeito ou use os filtros: gênero, duração, formato e as plataformas que você assina.
+2. **A IA interpreta.** Um modelo de linguagem transforma o pedido em critérios e escolhe, entre títulos reais do catálogo, os que mais combinam.
+3. **Você vê onde assistir.** O site mostra **10 sugestões por vez** (o botão "Carregar mais" traz as próximas), cada uma com o motivo da escolha e as plataformas onde está disponível no Brasil.
+
+Sem cadastro: as plataformas escolhidas ficam salvas só no navegador. A IA nunca inventa títulos, ela só escolhe entre itens reais do catálogo.
+
 ## Stack prevista
 
 | Camada | Tecnologia (prevista) |
