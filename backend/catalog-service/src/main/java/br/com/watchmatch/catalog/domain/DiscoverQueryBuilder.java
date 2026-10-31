@@ -58,6 +58,8 @@ public class DiscoverQueryBuilder {
         };
         params.put("sort_by", sortField + ".desc");
 
+        params.put("page", String.valueOf(request.page() != null ? request.page() : 1));
+
         return params;
     }
 

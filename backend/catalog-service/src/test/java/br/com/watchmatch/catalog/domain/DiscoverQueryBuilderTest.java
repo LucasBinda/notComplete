@@ -152,7 +152,8 @@ class DiscoverQueryBuilderTest {
                         "with_watch_monetization_types",
                         "language",
                         "vote_count.gte",
-                        "sort_by")
+                        "sort_by",
+                        "page")
                 .doesNotContainValue(null);
     }
 
@@ -167,5 +168,19 @@ class DiscoverQueryBuilderTest {
         assertThat(params)
                 .doesNotContainKey("with_genres")
                 .doesNotContainKey("without_genres");
+    }
+
+    @Test
+    void paginaPadraoEAPrimeira() {
+        var request = new DiscoverRequest(Criteria.empty(), List.of(8));
+
+        assertThat(builder.build(request, TitleType.MOVIE)).containsEntry("page", "1");
+    }
+
+    @Test
+    void paginaPedidaVaiParaOTmdb() {
+        var request = new DiscoverRequest(Criteria.empty(), List.of(8), SortBy.POPULARITY, null, 3);
+
+        assertThat(builder.build(request, TitleType.MOVIE)).containsEntry("page", "3");
     }
 }
