@@ -6,8 +6,8 @@ import { Header } from './components/Header'
 import { ResultsPanel } from './components/ResultsPanel'
 import { SearchModal } from './components/SearchModal'
 import { TitleDetails } from './components/TitleDetails'
-import type { SearchForm } from './lib/searchForm'
-import type { Criteria, MediaType, Meta, Recommendation, RecommendRequest, RecommendResponse } from './types'
+import { applyAiCriteria, userFilters, type SearchForm } from './lib/searchForm'
+import type { Meta, Recommendation, RecommendRequest, RecommendResponse } from './types'
 
 const PROVIDERS_KEY = 'watchmatch.providers'
 const DEFAULT_PROVIDERS = [8, 119] // Netflix e Prime Video
@@ -30,14 +30,6 @@ function saveProviders(providers: number[]) {
   }
 }
 
-function toFilters(form: SearchForm): Criteria {
-  const filters: Criteria = {}
-  if (form.mediaType) filters.mediaType = form.mediaType as MediaType
-  if (form.genre) filters.genres = [Number(form.genre)]
-  if (form.runtimeMax) filters.runtimeMax = Number(form.runtimeMax)
-  return filters
-}
-
 export default function App() {
   const [meta, setMeta] = useState<Meta | null>(null)
   const [form, setForm] = useState<SearchForm>({
@@ -46,6 +38,7 @@ export default function App() {
     runtimeMax: '',
     mediaType: '',
     providers: loadProviders(),
+    aiFields: [],
   })
   const [result, setResult] = useState<RecommendResponse | null>(null)
   const [loading, setLoading] = useState(false)
@@ -69,13 +62,16 @@ export default function App() {
     setError(null)
     const request: RecommendRequest = {
       query: current.query.trim() || undefined,
-      filters: toFilters(current),
+      filters: userFilters(current),
       providers: current.providers,
       limit: PAGE_SIZE,
     }
     try {
-      setResult(await recommend(request))
+      const response = await recommend(request)
+      setResult(response)
       setLastRequest(request)
+      // O que a IA entendeu aparece nos campos de Gênero, Duração e Formato
+      if (meta) setForm((prev) => applyAiCriteria(prev, response.criteria, meta))
     } catch (e) {
       setResult(null)
       setError(e instanceof Error ? e.message : 'Algo deu errado. Tente de novo.')

@@ -1,6 +1,6 @@
 import { Search, SlidersHorizontal } from 'lucide-react'
 import { shortProviderName } from '../lib/format'
-import { MEDIA_OPTIONS, RUNTIME_OPTIONS, type SearchForm } from '../lib/searchForm'
+import { MEDIA_OPTIONS, genresFor, runtimeLabel, type SearchForm } from '../lib/searchForm'
 import type { Meta } from '../types'
 
 interface Props {
@@ -12,11 +12,10 @@ interface Props {
 
 function filterSummary(form: SearchForm, meta: Meta): string[] {
   const parts: string[] = []
-  const genres = form.mediaType === 'tv' ? meta.genres.tv : meta.genres.movie
-  const genre = genres.find((g) => String(g.id) === form.genre)
+  const genre = genresFor(form.mediaType, meta).find((g) => String(g.id) === form.genre)
   if (form.mediaType) parts.push(MEDIA_OPTIONS.find((o) => o.value === form.mediaType)!.label)
   if (genre) parts.push(genre.name)
-  if (form.runtimeMax) parts.push(RUNTIME_OPTIONS.find((o) => o.value === form.runtimeMax)!.label)
+  if (form.runtimeMax) parts.push(runtimeLabel(form.runtimeMax))
 
   const names = meta.providers.filter((p) => form.providers.includes(p.id)).map((p) => shortProviderName(p.name))
   if (names.length === 0) parts.push('Nenhuma plataforma')

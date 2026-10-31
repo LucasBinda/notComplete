@@ -2,7 +2,7 @@ import { ArrowRight, LoaderCircle } from 'lucide-react'
 import type { KeyboardEvent } from 'react'
 import { PlatformPicker } from './PlatformPicker'
 import { SelectField } from './SelectField'
-import { MEDIA_OPTIONS, RUNTIME_OPTIONS, type SearchForm } from '../lib/searchForm'
+import { MEDIA_OPTIONS, genresFor, runtimeOptions, setField, type SearchForm } from '../lib/searchForm'
 import type { Meta } from '../types'
 
 const MAX_QUERY = 500
@@ -18,8 +18,8 @@ interface Props {
 export function SearchFields({ meta, form, onChange, wide = false, autoFocus = false }: Props) {
   const set = <K extends keyof SearchForm>(key: K, value: SearchForm[K]) => onChange({ ...form, [key]: value })
 
-  // Gêneros de série têm ids próprios no TMDB; sem formato escolhido, usamos os de filme
-  const genres = form.mediaType === 'tv' ? meta.genres.tv : meta.genres.movie
+  const genres = genresFor(form.mediaType, meta)
+  const ai = (field: SearchForm['aiFields'][number]) => form.aiFields.includes(field)
 
   function toggleProvider(id: number) {
     const providers = form.providers.includes(id)
@@ -66,7 +66,8 @@ export function SearchFields({ meta, form, onChange, wide = false, autoFocus = f
           id="genre"
           label="Gênero"
           value={form.genre}
-          onChange={(v) => set('genre', v)}
+          ai={ai('genre')}
+          onChange={(v) => onChange(setField(form, 'genre', v))}
           options={[
             { value: '', label: 'Qualquer gênero' },
             ...genres.map((g) => ({ value: String(g.id), label: g.name })),
@@ -76,14 +77,16 @@ export function SearchFields({ meta, form, onChange, wide = false, autoFocus = f
           id="runtime"
           label="Duração"
           value={form.runtimeMax}
-          onChange={(v) => set('runtimeMax', v)}
-          options={RUNTIME_OPTIONS}
+          ai={ai('runtimeMax')}
+          onChange={(v) => onChange(setField(form, 'runtimeMax', v))}
+          options={runtimeOptions(form.runtimeMax)}
         />
         <SelectField
           id="mediaType"
           label="Formato"
           value={form.mediaType}
-          onChange={(v) => onChange({ ...form, mediaType: v, genre: '' })}
+          ai={ai('mediaType')}
+          onChange={(v) => onChange(setField(form, 'mediaType', v))}
           options={MEDIA_OPTIONS}
         />
       </div>
