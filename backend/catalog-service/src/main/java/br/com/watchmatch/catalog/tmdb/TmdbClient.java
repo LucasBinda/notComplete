@@ -20,8 +20,7 @@ public class TmdbClient {
                 .build();
     }
 
-    // Por enquanto devolve o JSON cru; no próximo passo vira um record
-    public String discover(TitleType type, Map<String, String> params) {
+    public TmdbPage discover(TitleType type, Map<String, String> params) {
         return restClient.get()
                 .uri(uriBuilder -> {
                     uriBuilder.path("/discover/" + type.name().toLowerCase());
@@ -29,6 +28,6 @@ public class TmdbClient {
                     return uriBuilder.build();
                 })
                 .retrieve()
-                .body(String.class);
+                .body(TmdbPage.class);
     }
 }

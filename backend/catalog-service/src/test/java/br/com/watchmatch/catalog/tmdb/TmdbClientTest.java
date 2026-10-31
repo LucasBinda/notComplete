@@ -1,5 +1,6 @@
 package br.com.watchmatch.catalog.tmdb;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.header;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
@@ -36,5 +37,34 @@ class TmdbClientTest {
         client.discover(TitleType.MOVIE, Map.of("watch_region", "BR"));
 
         tmdbFalso.verify();
+    }
+
+    @Test
+    void discoverTransformaARespostaEmTmdbPage() {
+        tmdbFalso.expect(requestTo("https://api.themoviedb.org/3/discover/movie?watch_region=BR"))
+                .andRespond(withSuccess("""
+                    {"page": 1, "total_pages": 40, "results": [{
+                        "id": 157336,
+                        "title": "Interestelar",
+                        "original_title": "Interstellar",
+                        "overview": "Uma equipe de exploradores...",
+                        "poster_path": "/abc.jpg",
+                        "release_date": "2014-11-05",
+                        "vote_average": 8.4,
+                        "genre_ids": [12, 18, 878],
+                        "original_language": "en",
+                        "popularity": 99.9
+                    }]}
+                    """, MediaType.APPLICATION_JSON));
+
+        TmdbPage page = client.discover(TitleType.MOVIE, Map.of("watch_region", "BR"));
+
+        assertThat(page.totalPages()).isEqualTo(40);
+        TmdbResult interestelar = page.results().get(0);
+        assertThat(interestelar.id()).isEqualTo(157336);
+        assertThat(interestelar.title()).isEqualTo("Interestelar");
+        assertThat(interestelar.posterPath()).isEqualTo("/abc.jpg");
+        assertThat(interestelar.releaseDate()).isEqualTo("2014-11-05");
+        assertThat(interestelar.genreIds()).containsExactly(12, 18, 878);
     }
 }
