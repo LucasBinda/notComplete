@@ -13,19 +13,22 @@ npm run lint
 
 ## Modo demonstração (dados de exemplo)
 
-Enquanto os microsserviços não estão prontos, o site usa um **backend falso** (`src/api/mockApi.ts`):
+`npm run dev` usa um **backend falso** (`src/api/mockApi.ts`), útil quando os serviços não estão rodando:
 
 - os títulos são **reais**, gerados do TMDB e salvos em `src/mocks/catalog.json`;
 - os filtros (plataforma, formato, gênero, duração) funcionam;
-- o texto livre **não** é interpretado e as justificativas são montadas por modelo — a IA entra com o llm-service.
+- o texto livre **não** é interpretado e as justificativas são montadas por modelo.
 
-Para usar o backend de verdade (gateway rodando em `localhost:8080`), crie `frontend/.env.local`:
+## Com o backend de verdade
 
+Suba os três serviços (ver `backend/README.md`) e rode:
+
+```bash
+npm run dev:backend   # o mesmo que VITE_USE_MOCKS=false
 ```
-VITE_USE_MOCKS=false
-```
 
-Em desenvolvimento, o Vite repassa `/api` para `http://localhost:8080` (ver `vite.config.ts`).
+Em desenvolvimento ainda não há gateway: o Vite repassa `/api/recommend` para o recommendation-service
+(`localhost:8082`) e o resto de `/api` para o catalog-service (`localhost:8081`). Ver `vite.config.ts`.
 
 ## Estrutura
 
